@@ -10,11 +10,10 @@ namespace SmoAnalyzer
 
         public void Add(string name, double value, string fmt = "F6", string unit = "")
         {
+            var s = value.ToString(fmt, System.Globalization.CultureInfo.InvariantCulture);
             Rows.Add(new KeyValuePair<string, string>(
                 name,
-                string.IsNullOrEmpty(unit)
-                    ? value.ToString(fmt)
-                    : $"{value.ToString(fmt)} {unit}"));
+                string.IsNullOrEmpty(unit) ? s : $"{s} {unit}"));
         }
 
         public void AddText(string name, string value)

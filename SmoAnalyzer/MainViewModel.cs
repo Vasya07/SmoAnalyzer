@@ -22,50 +22,60 @@ namespace SmoAnalyzer
             remove => CommandManager.RequerySuggested -= value;
         }
     }
+    public enum SmoType
+    {
+        SingleRejection,
+        SingleLimited,
+        SingleInfinite,
+        MultiRejection,
+        MultiLimited,
+        MultiInfinite
+    }
 
     public class MainViewModel : INotifyPropertyChanged
     {
-        private int _selectedTypeIndex = 0;
-        public int SelectedTypeIndex
+        private SmoType _selectedType = SmoType.SingleRejection;
+        public SmoType SelectedType
         {
-            get => _selectedTypeIndex;
+            get => _selectedType;
             set
             {
-                _selectedTypeIndex = value;
+                if (_selectedType == value) return;
+                _selectedType = value;
                 OnPropertyChanged();
-                OnPropertyChanged(nameof(IsType1));
-                OnPropertyChanged(nameof(IsType2));
-                OnPropertyChanged(nameof(IsType3));
-                OnPropertyChanged(nameof(VisibilityType2));
-                OnPropertyChanged(nameof(VisibilityType3));
+                OnPropertyChanged(nameof(IsSingleChannel));
+                OnPropertyChanged(nameof(IsMultiChannel));
+                OnPropertyChanged(nameof(HasFiniteQueue));
+                OnPropertyChanged(nameof(VisibilityChannels));
+                OnPropertyChanged(nameof(VisibilityQueueLimit));
+                ClearResult();
+                ErrorText = "";
             }
         }
-
-        public bool IsType1 => SelectedTypeIndex == 0;
-        public bool IsType2 => SelectedTypeIndex == 1;
-        public bool IsType3 => SelectedTypeIndex == 2;
-        public Visibility VisibilityType2 => IsType2 ? Visibility.Visible : Visibility.Collapsed;
-        public Visibility VisibilityType3 => IsType3 ? Visibility.Visible : Visibility.Collapsed;
-        private double _lambda = 0;
-        public double Lambda { get => _lambda; set { _lambda = value; OnPropertyChanged(); } }
-        private int _lambdaUnitIndex = 0;
+        public bool IsSingleChannel => _selectedType is SmoType.SingleRejection or SmoType.SingleLimited or SmoType.SingleInfinite;
+        public bool IsMultiChannel => !IsSingleChannel;
+        public bool HasFiniteQueue => _selectedType is SmoType.SingleLimited or SmoType.MultiLimited;
+        public Visibility VisibilityChannels => IsMultiChannel ? Visibility.Visible : Visibility.Collapsed;
+        public Visibility VisibilityQueueLimit => HasFiniteQueue ? Visibility.Visible : Visibility.Collapsed;
+        private double _lambda;
+        public double Lambda
+        {
+            get => _lambda;
+            set { _lambda = value; OnPropertyChanged(); }
+        }
+        private int _lambdaUnitIndex;
         public int LambdaUnitIndex
         {
             get => _lambdaUnitIndex;
             set { _lambdaUnitIndex = value; OnPropertyChanged(); }
         }
         private bool _useMu = true;
-        private int _muUnitIndex = 0;
-        public int MuUnitIndex
-        {
-            get => _muUnitIndex;
-            set { _muUnitIndex = value; OnPropertyChanged(); }
-        }
         public bool UseMu
         {
             get => _useMu;
             set
             {
+                if (_useMu == value) return;
                 _useMu = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(UseT));
@@ -73,22 +83,56 @@ namespace SmoAnalyzer
                 OnPropertyChanged(nameof(VisibilityTPanel));
             }
         }
-        public bool UseT => !UseMu;
+        public bool UseT
+        {
+            get => !_useMu;
+            set { if (value) UseMu = false; }
+        }
         public Visibility VisibilityMuPanel => _useMu ? Visibility.Visible : Visibility.Collapsed;
         public Visibility VisibilityTPanel => _useMu ? Visibility.Collapsed : Visibility.Visible;
-        private double _mu = 0;
-        public double Mu { get => _mu; set { _mu = value; OnPropertyChanged(); } }
-        private double _serviceTime = 0;
-        public double ServiceTime { get => _serviceTime; set { _serviceTime = value; OnPropertyChanged(); } }
-        private int _timeUnitIndex = 0;
-        public int TimeUnitIndex { get => _timeUnitIndex; set { _timeUnitIndex = value; OnPropertyChanged(); } }
+        private double _mu;
+        public double Mu
+        {
+            get => _mu;
+            set { _mu = value; OnPropertyChanged(); }
+        }
+        private int _muUnitIndex;
+        public int MuUnitIndex
+        {
+            get => _muUnitIndex;
+            set { _muUnitIndex = value; OnPropertyChanged(); }
+        }
+        private double _serviceTime;
+        public double ServiceTime
+        {
+            get => _serviceTime;
+            set { _serviceTime = value; OnPropertyChanged(); }
+        }
+        private int _timeUnitIndex;
+        public int TimeUnitIndex
+        {
+            get => _timeUnitIndex;
+            set { _timeUnitIndex = value; OnPropertyChanged(); }
+        }
         private int _channels = 2;
-        public int Channels { get => _channels; set { _channels = value; OnPropertyChanged(); } }
+        public int Channels
+        {
+            get => _channels;
+            set { _channels = value; OnPropertyChanged(); }
+        }
         private int _queueLimit = 3;
-        public int QueueLimit { get => _queueLimit; set { _queueLimit = value; OnPropertyChanged(); } }
+        public int QueueLimit
+        {
+            get => _queueLimit;
+            set { _queueLimit = value; OnPropertyChanged(); }
+        }
         public ObservableCollection<KeyValuePair<string, string>> ResultRows { get; } = new();
         private string _resultTitle = "";
-        public string ResultTitle { get => _resultTitle; set { _resultTitle = value; OnPropertyChanged(); } }
+        public string ResultTitle
+        {
+            get => _resultTitle;
+            set { _resultTitle = value; OnPropertyChanged(); }
+        }
         private string _errorText = "";
         public string ErrorText
         {
@@ -104,7 +148,6 @@ namespace SmoAnalyzer
         public bool HasError => !string.IsNullOrEmpty(ErrorText);
         public Visibility VisibilityError => HasError ? Visibility.Visible : Visibility.Collapsed;
         public ICommand CalculateCommand { get; }
-
         public MainViewModel()
         {
             CalculateCommand = new RelayCommand(_ => Calculate());
@@ -128,7 +171,8 @@ namespace SmoAnalyzer
                 2 => ServiceTime * 24.0,
                 _ => ServiceTime
             };
-            if (hours <= 0) throw new ArgumentException("Время обслуживания должно быть > 0");
+            if (hours <= 0)
+                throw new ArgumentException("Время обслуживания должно быть > 0");
             return 1.0 / hours;
         }
         private void Calculate()
@@ -136,8 +180,7 @@ namespace SmoAnalyzer
             try
             {
                 ErrorText = "";
-                ResultRows.Clear();
-                ResultTitle = "";
+                ClearResult();
 
                 double lambdaInHour = LambdaUnitIndex switch
                 {
@@ -152,25 +195,39 @@ namespace SmoAnalyzer
                 if (lambdaInHour <= 0 || mu <= 0)
                     throw new ArgumentException("Значения λ и μ (или времени t) должны быть больше нуля");
 
-                SmoResult res;
+                if (IsMultiChannel && Channels < 1)
+                    throw new ArgumentException("Число каналов c должно быть ≥ 1");
 
-                switch (SelectedTypeIndex)
+                if (HasFiniteQueue && QueueLimit < 0)
+                    throw new ArgumentException("Длина очереди m должна быть ≥ 0");
+
+                SmoResult res = SelectedType switch
                 {
-                    case 0: res = SmoCalculator.Rejection(lambdaInHour, mu); break;
-                    case 1: res = SmoCalculator.InfiniteQueue(lambdaInHour, mu, Channels); break;
-                    case 2: res = SmoCalculator.LimitedQueue(lambdaInHour, mu, QueueLimit); break;
-                    default: return;
-                }
+                    SmoType.SingleRejection => SmoCalculator.Rejection(lambdaInHour, mu),
+                    SmoType.SingleLimited => SmoCalculator.LimitedQueue(lambdaInHour, mu, QueueLimit),
+                    SmoType.SingleInfinite => SmoCalculator.SingleInfiniteQueue(lambdaInHour, mu),
+                    SmoType.MultiRejection => SmoCalculator.MultiRejection(lambdaInHour, mu, Channels),
+                    SmoType.MultiLimited => SmoCalculator.MultiLimitedQueue(lambdaInHour, mu, Channels, QueueLimit),
+                    SmoType.MultiInfinite => SmoCalculator.InfiniteQueue(lambdaInHour, mu, Channels),
+                    _ => throw new InvalidOperationException("Неизвестный тип СМО")
+                };
 
                 ResultTitle = res.Title;
-                foreach (var row in res.Rows) ResultRows.Add(row);
+                foreach (var row in res.Rows)
+                    ResultRows.Add(row);
             }
             catch (Exception ex)
             {
                 ErrorText = ex.Message;
             }
         }
+        private void ClearResult()
+        {
+            ResultTitle = "";
+            ResultRows.Clear();
+        }
         public event PropertyChangedEventHandler? PropertyChanged;
-        protected void OnPropertyChanged([CallerMemberName] string? name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        protected void OnPropertyChanged([CallerMemberName] string? name = null)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }
