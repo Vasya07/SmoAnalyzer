@@ -1,10 +1,12 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace SmoAnalyzer
 {
@@ -149,10 +151,12 @@ namespace SmoAnalyzer
         public Visibility VisibilityError => HasError ? Visibility.Visible : Visibility.Collapsed;
         public ICommand CalculateCommand { get; }
         public ICommand ClearCommand { get; }
+        public ICommand ExportCommand { get; }
         public MainViewModel()
         {
             CalculateCommand = new RelayCommand(_ => Calculate());
             ClearCommand = new RelayCommand(_ => ClearAll());
+            ExportCommand = new RelayCommand(_ => ExportToExcel());
         }
         private double GetMu()
         {
@@ -241,6 +245,49 @@ namespace SmoAnalyzer
             QueueLimit = 0;
             ClearResult();
             ErrorText = "";
+        }
+        private void ExportToExcel()
+        {
+            if (ResultRows.Count == 0)
+            {
+                ErrorText = "Нет данных для выгрузки. Сначала выполните расчет.";
+                return;
+            }
+            try
+            {
+                dynamic excelApp = Activator.CreateInstance(Type.GetTypeFromProgID("Excel.Application"));
+                excelApp.Visible = false;
+                excelApp.DisplayAlerts = false;
+                dynamic workbook = excelApp.Workbooks.Add();
+                dynamic worksheet = workbook.Sheets[1];
+
+                worksheet.Name = "Результаты";
+                worksheet.Cells[1, 1] = ResultTitle;
+                worksheet.Cells[1, 1].Font.Bold = true;
+                worksheet.Cells[1, 1].Font.Size = 14;
+                worksheet.Range["A1:B1"].Merge();
+                worksheet.Cells[3, 1] = "Показатель";
+                worksheet.Cells[3, 2] = "Значение";
+                worksheet.Range["A3:B3"].Font.Bold = true;
+
+                int row = 4;
+                foreach (var item in ResultRows)
+                {
+                    worksheet.Cells[row, 1] = item.Key;
+                    worksheet.Cells[row, 2] = item.Value;
+                    row++;
+                }
+                worksheet.Columns[1].AutoFit();
+                worksheet.Columns[2].AutoFit();
+                worksheet.SaveAs("Выгрузка.xlsx");
+                workbook.Close(false);
+                excelApp.Quit();
+                System.Runtime.InteropServices.Marshal.ReleaseComObject(excelApp);
+            }
+            catch (Exception ex)
+            {
+                ErrorText = "Ошибка при выгрузке в Excel: " + ex.Message;
+            }
         }
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)

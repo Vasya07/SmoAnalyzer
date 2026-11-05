@@ -103,16 +103,22 @@
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="4"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="4"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
                     <Button Grid.Column="0" Content="Рассчитать" Command="{Binding CalculateCommand}"
                             Background="#2D7FF9" Foreground="White" FontWeight="Bold"/>
 
-                    <Button Grid.Column="2" Content="Очистить" Command="{Binding ClearCommand}"
+                    <Button Grid.Column="2" Content="В Excel" Command="{Binding ExportCommand}"
+                            Background="#1E8E3E" Foreground="White" FontWeight="Bold"/>
+
+                    <Button Grid.Column="4" Content="Очистить" Command="{Binding ClearCommand}"
                             Background="#E0E0E0" Foreground="#333333" FontWeight="Bold"/>
-    </Grid>
+                </Grid>
+                <Button Content="Музыка не играет" Click="MusicToggle_Click" Margin="0,4"/>
 
     <TextBlock Text="{Binding ErrorText}" Foreground="DarkRed" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding VisibilityError}"/>
     </StackPanel>
