@@ -148,9 +148,11 @@ namespace SmoAnalyzer
         public bool HasError => !string.IsNullOrEmpty(ErrorText);
         public Visibility VisibilityError => HasError ? Visibility.Visible : Visibility.Collapsed;
         public ICommand CalculateCommand { get; }
+        public ICommand ClearCommand { get; }
         public MainViewModel()
         {
             CalculateCommand = new RelayCommand(_ => Calculate());
+            ClearCommand = new RelayCommand(_ => ClearAll());
         }
         private double GetMu()
         {
@@ -225,6 +227,20 @@ namespace SmoAnalyzer
         {
             ResultTitle = "";
             ResultRows.Clear();
+        }
+        private void ClearAll()
+        {
+            Lambda = 0;
+            LambdaUnitIndex = 0;
+            UseMu = true;
+            Mu = 0;
+            MuUnitIndex = 0;
+            ServiceTime = 0;
+            TimeUnitIndex = 0;
+            Channels = 0;
+            QueueLimit = 0;
+            ClearResult();
+            ErrorText = "";
         }
         public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? name = null)

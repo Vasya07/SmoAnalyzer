@@ -100,10 +100,22 @@
 
                 <Separator Margin="0,8"/>
 
-                <Button Content="Рассчитать" Command="{Binding CalculateCommand}"
-                        Background="#2D7FF9" Foreground="White" FontWeight="Bold"/>
-                <TextBlock Text="{Binding ErrorText}" Foreground="DarkRed" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding VisibilityError}"/>
-            </StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0" Content="Рассчитать" Command="{Binding CalculateCommand}"
+                            Background="#2D7FF9" Foreground="White" FontWeight="Bold"/>
+
+                    <Button Grid.Column="2" Content="Очистить" Command="{Binding ClearCommand}"
+                            Background="#E0E0E0" Foreground="#333333" FontWeight="Bold"/>
+    </Grid>
+
+    <TextBlock Text="{Binding ErrorText}" Foreground="DarkRed" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="{Binding VisibilityError}"/>
+    </StackPanel>
         </ScrollViewer>
 
         <Border Grid.Column="2" BorderBrush="#DDD" BorderThickness="1" Padding="12">
